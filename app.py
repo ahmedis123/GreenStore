@@ -1,10 +1,19 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template_string, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
+from flask_uploads import UploadSet, configure_uploads, IMAGES
+import os
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///phone_store.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOADED_PHOTOS_DEST'] = 'static/uploads'
+app.config['SECRET_KEY'] = 'supersecretkey'
+
 db = SQLAlchemy(app)
+
+# إعداد Flask-Uploads
+photos = UploadSet('photos', IMAGES)
+configure_uploads(app, photos)
 
 # تعريف نموذج الهاتف
 class Phone(db.Model):
@@ -29,80 +38,84 @@ with app.app_context():
 @app.route('/')
 def index():
     phones = Phone.query.all()
-    return '''
+    return render_template_string('''
     <!DOCTYPE html>
-    <html lang="ar">
+    <html lang="ar" dir="rtl">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>متجر الهواتف</title>
-        <style>
-            body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
-            header { background-color: #333; color: #fff; padding: 10px 0; text-align: center; }
-            .products { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
-            .product { background-color: #fff; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin: 10px; width: 200px; text-align: center; }
-            .product img { max-width: 100%; height: auto; }
-        </style>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     </head>
     <body>
-        <header>
-            <h1>متجر الهواتف</h1>
-        </header>
-        <main>
-            <section class="products">
+        <nav class="navbar navbar-dark bg-dark">
+            <div class="container">
+                <a class="navbar-brand" href="/">متجر الهواتف</a>
+            </div>
+        </nav>
+        <div class="container mt-4">
+            <div class="row">
                 {% for phone in phones %}
-                <div class="product">
-                    <img src="{{ phone.image }}" alt="{{ phone.name }}">
-                    <h2>{{ phone.name }}</h2>
-                    <p>{{ phone.brand }} - {{ phone.condition }}</p>
-                    <p>السعر: {{ phone.price }} ريال</p>
-                    <a href="/product/{{ phone.id }}">تفاصيل</a>
+                <div class="col-md-4 mb-4">
+                    <div class="card">
+                        <img src="{{ phone.image }}" class="card-img-top" alt="{{ phone.name }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ phone.name }}</h5>
+                            <p class="card-text">{{ phone.brand }} - {{ phone.condition }}</p>
+                            <p class="card-text">السعر: {{ phone.price }} ريال</p>
+                            <a href="{{ url_for('product', id=phone.id) }}" class="btn btn-primary">تفاصيل</a>
+                        </div>
+                    </div>
                 </div>
                 {% endfor %}
-            </section>
-        </main>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     </body>
     </html>
-    '''
+    ''', phones=phones)
 
 # صفحة المنتج
 @app.route('/product/<int:id>')
 def product(id):
     phone = Phone.query.get_or_404(id)
-    return f'''
+    return render_template_string('''
     <!DOCTYPE html>
-    <html lang="ar">
+    <html lang="ar" dir="rtl">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{phone.name}</title>
-        <style>
-            body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
-            header { background-color: #333; color: #fff; padding: 10px 0; text-align: center; }
-            .product-details { padding: 20px; text-align: center; }
-            .product-details img { max-width: 100%; height: auto; }
-        </style>
+        <title>{{ phone.name }}</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     </head>
     <body>
-        <header>
-            <h1>{phone.name}</h1>
-        </header>
-        <main>
-            <section class="product-details">
-                <img src="{phone.image}" alt="{phone.name}">
-                <p>الماركة: {phone.brand}</p>
-                <p>الحالة: {phone.condition}</p>
-                <p>السعر: {phone.price} ريال</p>
-                <form action="/add_to_cart/{phone.id}" method="POST">
-                    <label for="quantity">الكمية:</label>
-                    <input type="number" id="quantity" name="quantity" min="1" value="1">
-                    <button type="submit">إضافة إلى السلة</button>
-                </form>
-            </section>
-        </main>
+        <nav class="navbar navbar-dark bg-dark">
+            <div class="container">
+                <a class="navbar-brand" href="/">متجر الهواتف</a>
+            </div>
+        </nav>
+        <div class="container mt-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <img src="{{ phone.image }}" class="img-fluid" alt="{{ phone.name }}">
+                </div>
+                <div class="col-md-6">
+                    <h1>{{ phone.name }}</h1>
+                    <p>الماركة: {{ phone.brand }}</p>
+                    <p>الحالة: {{ phone.condition }}</p>
+                    <p>السعر: {{ phone.price }} ريال</p>
+                    <form action="{{ url_for('add_to_cart', id=phone.id) }}" method="POST">
+                        <label for="quantity">الكمية:</label>
+                        <input type="number" id="quantity" name="quantity" min="1" value="1" class="form-control mb-3">
+                        <button type="submit" class="btn btn-success">إضافة إلى السلة</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     </body>
     </html>
-    '''
+    ''', phone=phone)
 
 # إضافة إلى سلة المشتريات
 @app.route('/add_to_cart/<int:id>', methods=['POST'])
@@ -111,132 +124,134 @@ def add_to_cart(id):
     new_order = Order(phone_id=id, quantity=quantity)
     db.session.add(new_order)
     db.session.commit()
-    return redirect('/cart')
+    flash('تمت إضافة المنتج إلى السلة بنجاح!', 'success')
+    return redirect(url_for('cart'))
 
 # سلة المشتريات
 @app.route('/cart')
 def cart():
     orders = Order.query.all()
     phones = [Phone.query.get(order.phone_id) for order in orders]
-    return '''
+    total = sum(phone.price * order.quantity for phone, order in zip(phones, orders))
+    return render_template_string('''
     <!DOCTYPE html>
-    <html lang="ar">
+    <html lang="ar" dir="rtl">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>سلة المشتريات</title>
-        <style>
-            body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
-            header { background-color: #333; color: #fff; padding: 10px 0; text-align: center; }
-            .cart { padding: 20px; }
-            .cart-item { background-color: #fff; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin: 10px; }
-        </style>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     </head>
     <body>
-        <header>
+        <nav class="navbar navbar-dark bg-dark">
+            <div class="container">
+                <a class="navbar-brand" href="/">متجر الهواتف</a>
+            </div>
+        </nav>
+        <div class="container mt-4">
             <h1>سلة المشتريات</h1>
-        </header>
-        <main>
-            <section class="cart">
-                {% for order, phone in zip(orders, phones) %}
-                <div class="cart-item">
-                    <img src="{{ phone.image }}" alt="{{ phone.name }}">
-                    <h2>{{ phone.name }}</h2>
-                    <p>الكمية: {{ order.quantity }}</p>
-                    <p>السعر: {{ phone.price * order.quantity }} ريال</p>
+            {% for order, phone in zip(orders, phones) %}
+            <div class="card mb-3">
+                <div class="row g-0">
+                    <div class="col-md-4">
+                        <img src="{{ phone.image }}" class="img-fluid" alt="{{ phone.name }}">
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ phone.name }}</h5>
+                            <p class="card-text">الكمية: {{ order.quantity }}</p>
+                            <p class="card-text">السعر الإجمالي: {{ phone.price * order.quantity }} ريال</p>
+                        </div>
+                    </div>
                 </div>
-                {% endfor %}
-                <a href="/checkout">الدفع</a>
-            </section>
-        </main>
+            </div>
+            {% endfor %}
+            <h3>المجموع: {{ total }} ريال</h3>
+            <a href="{{ url_for('checkout') }}" class="btn btn-success">الدفع</a>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     </body>
     </html>
-    '''
+    ''', orders=orders, phones=phones, total=total)
 
 # صفحة الدفع
 @app.route('/checkout')
 def checkout():
-    return '''
-    <!DOCTYPE html>
-    <html lang="ar">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>الدفع</title>
-        <style>
-            body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
-            header { background-color: #333; color: #fff; padding: 10px 0; text-align: center; }
-            .checkout { padding: 20px; text-align: center; }
-        </style>
-    </head>
-    <body>
-        <header>
-            <h1>الدفع</h1>
-        </header>
-        <main>
-            <section class="checkout">
-                <p>شكرًا لشرائك!</p>
-            </section>
-        </main>
-    </body>
-    </html>
-    '''
+    orders = Order.query.all()
+    for order in orders:
+        db.session.delete(order)
+    db.session.commit()
+    flash('تمت عملية الدفع بنجاح! شكرًا لشرائك.', 'success')
+    return redirect(url_for('index'))
 
 # لوحة التحكم (إدارة المنتجات)
 @app.route('/admin')
 def admin():
     phones = Phone.query.all()
-    return '''
+    return render_template_string('''
     <!DOCTYPE html>
-    <html lang="ar">
+    <html lang="ar" dir="rtl">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>لوحة التحكم</title>
-        <style>
-            body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
-            header { background-color: #333; color: #fff; padding: 10px 0; text-align: center; }
-            .admin { padding: 20px; }
-            .admin form { margin-bottom: 20px; }
-        </style>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     </head>
     <body>
-        <header>
+        <nav class="navbar navbar-dark bg-dark">
+            <div class="container">
+                <a class="navbar-brand" href="/">متجر الهواتف</a>
+            </div>
+        </nav>
+        <div class="container mt-4">
             <h1>لوحة التحكم</h1>
-        </header>
-        <main>
-            <section class="admin">
-                <h2>إضافة منتج جديد</h2>
-                <form action="/admin/add" method="POST">
-                    <label for="name">اسم المنتج:</label>
-                    <input type="text" id="name" name="name" required>
-                    <label for="brand">الماركة:</label>
-                    <input type="text" id="brand" name="brand" required>
-                    <label for="price">السعر:</label>
-                    <input type="number" id="price" name="price" step="0.01" required>
-                    <label for="condition">الحالة:</label>
-                    <select id="condition" name="condition" required>
+            <h2>إضافة منتج جديد</h2>
+            <form action="{{ url_for('add_product') }}" method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="name" class="form-label">اسم المنتج:</label>
+                    <input type="text" id="name" name="name" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label for="brand" class="form-label">الماركة:</label>
+                    <input type="text" id="brand" name="brand" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label for="price" class="form-label">السعر:</label>
+                    <input type="number" id="price" name="price" step="0.01" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label for="condition" class="form-label">الحالة:</label>
+                    <select id="condition" name="condition" class="form-control" required>
                         <option value="جديد">جديد</option>
                         <option value="مستعمل">مستعمل</option>
                     </select>
-                    <label for="image">رابط الصورة:</label>
-                    <input type="url" id="image" name="image" required>
-                    <button type="submit">إضافة</button>
-                </form>
-                <h2>المنتجات</h2>
+                </div>
+                <div class="mb-3">
+                    <label for="image" class="form-label">صورة المنتج:</label>
+                    <input type="file" id="image" name="image" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary">إضافة</button>
+            </form>
+            <h2 class="mt-4">المنتجات</h2>
+            <div class="row">
                 {% for phone in phones %}
-                <div class="product">
-                    <img src="{{ phone.image }}" alt="{{ phone.name }}">
-                    <h2>{{ phone.name }}</h2>
-                    <p>{{ phone.brand }} - {{ phone.condition }}</p>
-                    <p>السعر: {{ phone.price }} ريال</p>
+                <div class="col-md-4 mb-4">
+                    <div class="card">
+                        <img src="{{ phone.image }}" class="card-img-top" alt="{{ phone.name }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ phone.name }}</h5>
+                            <p class="card-text">{{ phone.brand }} - {{ phone.condition }}</p>
+                            <p class="card-text">السعر: {{ phone.price }} ريال</p>
+                        </div>
+                    </div>
                 </div>
                 {% endfor %}
-            </section>
-        </main>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     </body>
     </html>
-    '''
+    ''', phones=phones)
 
 # إضافة منتج جديد (لوحة التحكم)
 @app.route('/admin/add', methods=['POST'])
@@ -245,11 +260,19 @@ def add_product():
     brand = request.form.get('brand')
     price = request.form.get('price')
     condition = request.form.get('condition')
-    image = request.form.get('image')
-    new_phone = Phone(name=name, brand=brand, price=price, condition=condition, image=image)
+    image = request.files.get('image')
+
+    if image and photos.file_allowed(image, image.filename):
+        filename = photos.save(image)
+        image_url = url_for('static', filename=f'uploads/{filename}')
+    else:
+        image_url = None
+
+    new_phone = Phone(name=name, brand=brand, price=price, condition=condition, image=image_url)
     db.session.add(new_phone)
     db.session.commit()
-    return redirect('/admin')
+    flash('تمت إضافة المنتج بنجاح!', 'success')
+    return redirect(url_for('admin'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
