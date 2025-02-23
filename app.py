@@ -1,6 +1,6 @@
 from flask import Flask, render_template_string, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_reuploaded import UploadSet, configure_uploads, IMAGES
+from flask_uploads import UploadSet, configure_uploads, IMAGES
 import os
 
 app = Flask(__name__)
@@ -11,7 +11,7 @@ app.config['SECRET_KEY'] = 'supersecretkey'
 
 db = SQLAlchemy(app)
 
-# إعداد Flask-Reuploaded
+# إعداد Flask-Uploads
 photos = UploadSet('photos', IMAGES)
 configure_uploads(app, photos)
 
@@ -20,7 +20,7 @@ class Phone(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     brand = db.Column(db.String(50), nullable=False)
-    price = db.Column(db.Float, nullable=False)
+    price = db.Column(db.Float), nullable=False)
     condition = db.Column(db.String(20), nullable=False)  # جديد أو مستعمل
     image = db.Column(db.String(200), nullable=False)
 
