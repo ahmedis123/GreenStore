@@ -28,7 +28,7 @@ class Phone(db.Model):
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     phone_id = db.Column(db.Integer, db.ForeignKey('phone.id'), nullable=False)
-    quantity = db.Column(db.Integer), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
 
 # إنشاء قاعدة البيانات
 with app.app_context():
